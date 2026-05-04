@@ -38,15 +38,26 @@ Return ONLY valid JSON:
     });
 
     const data = await response.json();
+    
+    // Check if OpenAI returned an error (e.g. invalid API key)
+    if (data.error) {
+      console.error("OpenAI Error:", data.error);
+      return res.status(500).json({ error: "OpenAI API Error", details: data.error.message });
+    }
+
     const content = data.choices[0].message.content;
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return res.status(500).json({ error: "LLM did not return valid JSON", content: content });
+    }
+    
     const parsed = JSON.parse(jsonMatch[0]);
 
     return res.status(200).json(parsed);
 
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "LLM parsing failed" });
+    return res.status(500).json({ error: "LLM parsing failed", details: err.message });
   }
 }

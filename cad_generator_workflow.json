@@ -1,0 +1,231 @@
+{
+  "name": "CAD Generator Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cad-generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-3.5-turbo",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Extract engineering parameters from this text.\n\nReturn ONLY valid JSON.\n\nFields:\n- type (always \"L_bracket\")\n- load_kg\n- length_mm (default 100)\n- height_mm (default 80)\n- width_mm (default 50)\n- hole_count (default 2)\n- hole_placement (base/vertical/both, default base)\n\nRules:\n- If missing, use defaults\n- Ensure all values are valid numbers\n\nInput:\n{{ $json.body.description }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "2",
+      "name": "LLM Node",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [350, 300],
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  let cleanText = $input.item.json.message?.content || $input.item.json.text || \"{}\";\n  cleanText = cleanText.replace(/```json/g, '').replace(/```/g, '').trim();\n  const data = JSON.parse(cleanText);\n  return { json: data };\n} catch(err) {\n  return { json: { error: \"Invalid JSON from LLM\" } };\n}"
+      },
+      "id": "3",
+      "name": "Set Node (Clean JSON)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.load_kg }}",
+              "operation": "larger",
+              "value2": 0
+            },
+            {
+              "value1": "={{ $json.hole_count }}",
+              "operation": "largerEqual",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "4",
+      "name": "IF Node (Validation)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5000/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "5",
+      "name": "HTTP Request Node",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1150, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "success"
+            }
+          ]
+        }
+      },
+      "id": "9",
+      "name": "IF API Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Respond Node (Success)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"Validation failed or missing required fields. Ensure load_kg is provided and > 0.\"}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "7",
+      "name": "Respond Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1150, 450]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"API generation failed\", \"details\": \"{{ $json.message || 'Unknown error' }}\"}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "8",
+      "name": "Respond API Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "LLM Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Node": {
+      "main": [
+        [
+          {
+            "node": "Set Node (Clean JSON)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Node (Clean JSON)": {
+      "main": [
+        [
+          {
+            "node": "IF Node (Validation)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Node (Validation)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Node",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Node": {
+      "main": [
+        [
+          {
+            "node": "IF API Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF API Success": {
+      "main": [
+        [
+          {
+            "node": "Respond Node (Success)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond API Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
