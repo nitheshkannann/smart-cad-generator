@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart CAD Generator</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Three.js and loaders -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+
+</head>
+<body>
+    <div class="layout">
+        <div class="left-panel">
+            <header>
+                <h1>Smart CAD Generator</h1>
+                <p>Describe your engineering part and let AI generate the exact 3D models.</p>
+            </header>
+
+            <main>
+                <div class="input-section">
+                    <textarea id="description" placeholder="e.g. Design a heavy duty bracket for 30kg load with 4 holes..."></textarea>
+                    <button id="generateBtn">Generate CAD</button>
+                </div>
+
+                <div id="loading" class="hidden">
+                    <div class="spinner"></div>
+                    <p>Analyzing intent and generating deterministic CAD variants...</p>
+                </div>
+
+                <div id="results" class="hidden">
+                    <div id="explanationBox" class="explanation-box"></div>
+                    <h2>Generated Designs</h2>
+                    <div id="designsList" class="designs-grid"></div>
+                </div>
+
+                <div id="errorBox" class="hidden error-box"></div>
+            </main>
+        </div>
+        
+        <div class="right-panel">
+            <div id="viewer3d" class="viewer-container">
+                <div id="viewerPlaceholder" class="viewer-placeholder">
+                    <p>3D Preview will appear here</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
